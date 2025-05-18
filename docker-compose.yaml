@@ -1,0 +1,44 @@
+﻿version: '3.8'
+
+services:
+  sample.cache.api:
+    image: sample.cache.api
+    build:
+      context: .
+      dockerfile: Sample.Cache.Api/Dockerfile
+    ports:
+      - "5000:80"
+      - "5001:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80;https://+:443
+      - Logging__LogLevel__Default=Information
+      - Logging__LogLevel__Sample.Cache.Api=Debug
+      - Logging__LogLevel__Platform.MicroFrame.Caching=Debug
+      - Caching__Enabled=true
+      - Caching__DefaultTimeToLiveSeconds=60
+      - Redis__ConnectionString=redis:6379,abortConnect=false
+    depends_on:
+      - redis
+    networks:
+      - cache-network
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - cache-network
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+
+networks:
+  cache-network:
+    driver: bridge
+
+volumes:
+  redis-data:

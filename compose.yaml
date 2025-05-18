@@ -1,7 +1,0 @@
-﻿services:
-  sample.cache.api:
-    image: sample.cache.api
-    build:
-      context: .
-      dockerfile: Sample.Cache.Api/Dockerfile
-

@@ -1,41 +1,110 @@
-var builder = WebApplication.CreateBuilder(args);
+// <copyright file="Program.cs" project="Sample.Cache.Api">
+// 
+//    Copyright (c) MicroFrame Solutions. All rights reserved.
+//    Author:    berkkulaksiz
+//    CreatedAt:   18.05.2025
+//    UpdatedAt: 18.05.2025
+// 
+//    Licensed under the Proprietary license. See LICENSE file in the project root for full license information.
+// 
+// </copyright>
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+namespace Sample.Cache.Api;
 
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+public class Program
 {
-    app.MapOpenApi();
-}
-
-app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
+    public static void Main(string[] args)
     {
-        var forecast = Enumerable.Range(1, 5).Select(index =>
-                new WeatherForecast
-                (
-                    DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                    Random.Shared.Next(-20, 55),
-                    summaries[Random.Shared.Next(summaries.Length)]
-                ))
-            .ToArray();
-        return forecast;
-    })
-    .WithName("GetWeatherForecast");
+        var builder = WebApplication.CreateBuilder(args);
 
-app.Run();
+        // Add services to the container.
+        ConfigureServices(builder.Services, builder.Configuration);
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+        var app = builder.Build();
+
+        // Configure the HTTP request pipeline.
+        Configure(app, app.Environment);
+
+        // Seed sample data
+        using (var scope = app.Services.CreateScope())
+        {
+            var dataService = scope.ServiceProvider.GetRequiredService<IProductDataService>();
+            dataService.SeedData();
+        }
+
+        app.Run();
+    }
+
+    private static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<ContentBasedCacheStrategyOptions>(
+            configuration.GetSection("Caching:ContentBasedStrategy"));
+        
+        // Add controllers
+        services.AddControllers();
+
+        // Add sample services
+        services.AddSingleton<IProductDataService, ProductDataService>();
+        services.AddScoped<IProductService, ProductService>();
+        services.AddScoped<ICategoryService, CategoryService>();
+
+        // Add memory cache
+        services.AddMemoryCache();
+
+        // Add MicroFrame caching
+        services.AddMicroFrameCaching(options =>
+        {
+            options.DefaultTimeToLiveSeconds = 60;
+            options.EnableSwaggerDocumentation = true;
+            options.EnableBackgroundRefresh = true;
+        });
+
+        // Add Redis caching (commented out as it requires Redis server)
+        // Uncomment this if you have Redis server running
+        var redisSettings = configuration.GetSection("Redis").Get<RedisSettings>();
+        // Register Redis settings (mock implementation for demo)
+        services.AddSingleton<IRedisSettings>(redisSettings);
+        
+        services.AddRedisCaching(redisSettings);
+
+        // Add cache metrics
+        services.AddCacheMetrics();
+
+        // Add cache strategies
+        services.AddTransient<ProductCacheStrategy>();
+        services.AddTransient<CategoryCacheStrategy>();
+        services.AddTransient<ContentBasedCacheStrategy>();
+        
+        // Configure Swagger
+        services.AddEndpointsApiExplorer();
+        services.AddSwaggerGen(options =>
+        {
+            options.SwaggerDoc("v1", new OpenApiInfo
+            {
+                Title = "Sample Cache API",
+                Version = "v1",
+                Description = "Sample API demonstrating MicroFrame Caching capabilities"
+            });
+
+            // Uncomment when you have SwaggerCacheExtensions available
+            // options.AddCacheDocumentation();
+        });
+    }
+
+    private static void Configure(WebApplication app, IWebHostEnvironment env)
+    {
+        if (env.IsDevelopment()) app.UseDeveloperExceptionPage();
+
+        app.UseSwagger();
+        app.UseSwaggerUI(c =>
+        {
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Sample Cache API v1");
+            c.RoutePrefix = string.Empty; // Set Swagger UI at app root
+        });
+
+        app.UseHttpsRedirection();
+        app.UseRouting();
+        app.UseAuthorization();
+        app.MapControllers();
+    }
 }

@@ -1,0 +1,56 @@
+{
+  "name": "Sample Cache API Development",
+  "dockerComposeFile": ["../docker-compose.yml", "docker-compose.dev.yml"],
+  "service": "sample.cache.api",
+  "workspaceFolder": "/src",
+  "shutdownAction": "stopCompose",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.vscode-dotnet-runtime",
+        "formulahendry.dotnet-test-explorer",
+        "ms-azuretools.vscode-docker",
+        "redhat.vscode-yaml",
+        "humao.rest-client",
+        "eamodio.gitlens",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.powershell",
+        "bierner.markdown-preview-github-styles",
+        "gruntfuggly.todo-tree"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.rulers": [120],
+        "editor.codeActionsOnSave": {
+          "source.fixAll": true
+        },
+        "files.exclude": {
+          "**/bin": true,
+          "**/obj": true
+        },
+        "dotnet-test-explorer.testProjectPath": "**/*Tests.csproj"
+      }
+    }
+  },
+  "forwardPorts": [5000, 5001, 6379, 8001],
+  "features": {
+    "ghcr.io/devcontainers/features/dotnet:latest": {
+      "version": "9.0"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:latest": {
+      "version": "latest",
+      "moby": true
+    },
+    "ghcr.io/devcontainers/features/git:latest": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/github-cli:latest": {
+      "version": "latest"
+    }
+  },
+  "postCreateCommand": "dotnet restore",
+  "waitFor": "onCreateCommand",
+  "remoteUser": "vscode"
+}

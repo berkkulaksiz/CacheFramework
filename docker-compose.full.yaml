@@ -1,0 +1,74 @@
+﻿version: '3.8'
+
+services:
+  # API Servisimiz
+  sample.cache.api:
+    image: sample.cache.api
+    container_name: sample-cache-api
+    build:
+      context: .
+      dockerfile: Sample.Cache.Api/Dockerfile
+    ports:
+      - "5000:80"
+      - "5001:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80;https://+:443
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password123
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      - Logging__LogLevel__Default=Information
+      - Logging__LogLevel__Sample.Cache.Api=Debug
+      - Logging__LogLevel__Platform.MicroFrame.Caching=Debug
+      - Caching__Enabled=true
+      - Caching__DefaultTimeToLiveSeconds=60
+      - Redis__ConnectionString=redis:6379,abortConnect=false
+    depends_on:
+      - redis
+    networks:
+      - cache-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - ~/.aspnet/https:/https:ro
+
+  # Redis Server
+  redis:
+    image: redis:alpine
+    container_name: redis-cache
+    ports:
+      - "6379:6379"
+    networks:
+      - cache-network
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Redis Insight - Redis Yönetim Arayüzü (İsteğe Bağlı)
+  redis-insight:
+    image: redislabs/redisinsight:latest
+    container_name: redis-insight
+    ports:
+      - "8001:8001"
+    networks:
+      - cache-network
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+networks:
+  cache-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local
